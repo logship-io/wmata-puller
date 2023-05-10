@@ -2,12 +2,10 @@
 
 namespace Logship.WmataPuller.Config
 {
-    internal class Configuration
+    public class Configuration
     {
-        [JsonInclude]
-        public string AuthToken { get; set; }
+        public string? AuthToken { get; set; }
 
-        [JsonInclude]
         public TimeSpan Interval { get; set; } = TimeSpan.FromSeconds(5);
     }
 }

@@ -2,7 +2,6 @@
 using Logship.WmataPuller;
 using Logship.WmataPuller.Bus;
 using Logship.WmataPuller.Config;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
@@ -50,10 +49,16 @@ public class Program
         }
 
         var config = JsonSerializer.Deserialize<Configuration>(File.ReadAllText("application.json"), SourceGenerationContext.Default.Configuration);
+        if (null == config)
+        {
+            log.LogCritical("application.json was found. But deserialization failed.");
+            return;
+        }
+
         using var client = new HttpClient();
 
 
-        var fetcher = new BusPositionFetcher(client, "https://api.wmata.com/Bus.svc/json/jBusPositions", config.AuthToken, log);
+        var fetcher = new BusPositionFetcher(client, "https://api.wmata.com/Bus.svc/json/jBusPositions", config.AuthToken!, log);
 
         while (false == token.IsCancellationRequested)
         {
