@@ -54,6 +54,11 @@ public class Program
             log.LogCritical("application.json was found. But deserialization failed.");
             return;
         }
+        if (false == config.IsValid(out var reason))
+        {
+            log.LogCritical("application.json was found. But is not valid. {reason}", reason);
+            return;
+        }
 
         using var client = new HttpClient();
 
@@ -64,14 +69,14 @@ public class Program
         {
             var values = await fetcher.PullBusPositionsAsync(token);
             log.LogInformation("uploading {count} bus position metrics", values.Count);
-            await UploadMetrics(client, values, token);
+            await UploadMetrics(client, config.LogshipEndpoint!, values, token);
             await Task.Delay(config.Interval, token);
         }
     }
 
-    private static async Task UploadMetrics(HttpClient client, IReadOnlyList<JsonLogEntrySchema> entries, CancellationToken token)
+    private static async Task UploadMetrics(HttpClient client, string endpoint, IReadOnlyList<JsonLogEntrySchema> entries, CancellationToken token)
     {
         var content = JsonSerializer.Serialize<IReadOnlyList<JsonLogEntrySchema>>(entries, SourceGenerationContext.Default.IReadOnlyListJsonLogEntrySchema);
-        await client.PutAsync($"http://try.logship.ai:5000/inflow/{Guid.Empty}", new StringContent(content, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")));
+        await client.PutAsync($"{endpoint}/inflow/{Guid.Empty}", new StringContent(content, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")));
     }
 }
