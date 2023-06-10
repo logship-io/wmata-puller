@@ -6,7 +6,7 @@ namespace Logship.WmataPuller.Config
     {
         public string? LogshipEndpoint { get; set; }
 
-        public string? AuthToken { get; set; }
+        public Dictionary<string, GTFSRealtimeFeedConfiguration> GTFS { get; set; } = new Dictionary<string, GTFSRealtimeFeedConfiguration>();
 
         public TimeSpan Interval { get; set; } = TimeSpan.FromSeconds(5);
 
@@ -18,10 +18,15 @@ namespace Logship.WmataPuller.Config
                 return false;
             }
 
-            if (string.IsNullOrEmpty(this.AuthToken))
+            if (this.GTFS != null)
             {
-                whyNot = "AuthToken must be set to your WMATA auth token";
-                return false;
+                foreach (var value in this.GTFS.Values)
+                {
+                    if (false == value.IsValid(out whyNot))
+                    {
+                        return false;
+                    }
+                }
             }
 
             whyNot = null!;

@@ -1,11 +1,14 @@
 ﻿
 using Logship.WmataPuller;
-using Logship.WmataPuller.Bus;
 using Logship.WmataPuller.Config;
+using Logship.WmataPuller.GTFS;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
+
 
 public class Program
 {
@@ -42,18 +45,14 @@ public class Program
             }));
 
         var log = loggerFactory.CreateLogger("Logship.WmataPuller");
-        if (false == File.Exists("application.json"))
-        {
-            log.LogCritical("application.json not found");
-            return;
-        }
 
-        var config = JsonSerializer.Deserialize<Configuration>(File.ReadAllText("application.json"), SourceGenerationContext.Default.Configuration);
-        if (null == config)
-        {
-            log.LogCritical("application.json was found. But deserialization failed.");
-            return;
-        }
+        var configBuilder = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json")
+            .AddJsonFile($"appsettings.{System.Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true);
+
+        var config = new Configuration();
+        configBuilder.Build().Bind(config);
+
         if (false == config.IsValid(out var reason))
         {
             log.LogCritical("application.json was found. But is not valid. {reason}", reason);
@@ -62,14 +61,22 @@ public class Program
 
         using var client = new HttpClient();
 
-
-        var fetcher = new BusPositionFetcher(client, "https://api.wmata.com/Bus.svc/json/jBusPositions", config.AuthToken!, log);
-
         while (false == token.IsCancellationRequested)
         {
-            var values = await fetcher.PullBusPositionsAsync(token);
-            log.LogInformation("uploading {count} bus position metrics", values.Count);
-            await UploadMetrics(client, config.LogshipEndpoint!, values, token);
+            foreach (var feed in config.GTFS)
+            {
+                log.LogInformation("Fetching feed {name}", feed.Key);
+                try
+                {
+                    var results = await GTFSDataPuller.FetchVehiclePositions(feed.Key, client, feed.Value, token);
+                    await UploadMetrics(client, config.LogshipEndpoint, results, token);
+                }
+                catch(Exception ex)
+                {
+                    log.LogError(ex, "Failed to pull gtfs feed data for feed {feed}", feed.Key);
+                }
+            }
+
             await Task.Delay(config.Interval, token);
         }
     }
