@@ -55,7 +55,7 @@ public class Program
 
         if (false == config.IsValid(out var reason))
         {
-            log.LogCritical("application.json was found. But is not valid. {reason}", reason);
+            log.LogCritical("appsettings.json was found. But is not valid. {reason}", reason);
             return;
         }
 
