@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 
@@ -65,11 +66,13 @@ public class Program
         {
             foreach (var feed in config.GTFS)
             {
+                var timer = Stopwatch.StartNew();
                 log.LogInformation("Fetching feed {name}", feed.Key);
                 try
                 {
                     var results = await GTFSDataPuller.FetchVehiclePositions(feed.Key, client, feed.Value, token);
-                    await UploadMetrics(client, config.LogshipEndpoint, results, token);
+                    await UploadMetrics(client, config.LogshipEndpoint!, results, token);
+                    log.LogInformation("Finished fetching feed {name} in {elapsed}", feed.Key, timer.Elapsed);
                 }
                 catch(Exception ex)
                 {
