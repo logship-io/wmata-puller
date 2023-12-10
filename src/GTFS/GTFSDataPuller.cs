@@ -20,7 +20,7 @@ namespace Logship.WmataPuller.GTFS
 
             var message = FeedMessage.Parser.ParseFrom(await result.Content.ReadAsStreamAsync(token));
 
-            var now = DateTime.UtcNow;
+            var now = DateTimeOffset.UtcNow;
             var results = new List<JsonLogEntrySchema>();
             foreach (var item in message.Entity)
             {
@@ -64,11 +64,11 @@ namespace Logship.WmataPuller.GTFS
                 }
 
                 // Sometimes the send us a timestamp of 0, which is not valid, so just default to now;
-                var timestamp = (long)vehicle.Timestamp != default
+                var timestamp = (long)vehicle.Timestamp != default && vehicle.Timestamp <= (ulong)now.ToUnixTimeSeconds()
                     ? DateTimeOffset.FromUnixTimeSeconds((long)vehicle.Timestamp).UtcDateTime
                     : now;
 
-                var log = new JsonLogEntrySchema("GTFS.VehiclePositions", timestamp, fields);
+                var log = new JsonLogEntrySchema("GTFS.VehiclePositions", timestamp.UtcDateTime, fields);
 
                 results.Add(log);
             }
