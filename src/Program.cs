@@ -60,18 +60,27 @@ public class Program
             return;
         }
 
+        var startupThreshold = DateTime.UtcNow - config.Interval;
         using var client = new HttpClient();
 
         while (false == token.IsCancellationRequested)
         {
+            var nextInterval = DateTime.UtcNow;
             foreach (var feed in config.GTFS)
             {
                 var timer = Stopwatch.StartNew();
                 log.LogInformation("Fetching feed {name}", feed.Key);
                 try
                 {
-                    var results = await GTFSDataPuller.FetchVehiclePositions(feed.Key, client, feed.Value, token);
-                    await UploadMetrics(client, config.LogshipEndpoint!, results, token);
+                    var results = (await GTFSDataPuller.FetchVehiclePositions(feed.Key, client, feed.Value, token))
+                        .Where(r => r.Timestamp >= startupThreshold).ToList();
+
+                    if (results.Count == 0)
+                    {
+                        log.LogInformation("Fetched {count} entries for feed {name}", results.Count, feed.Key);
+                        continue;
+                    }
+                    await UploadMetrics(client, config.LogshipEndpoint!, results.Where(r => r.Timestamp >= startupThreshold).ToList(), token);
                     log.LogInformation("Finished fetching feed {name} in {elapsed}", feed.Key, timer.Elapsed);
                 }
                 catch(Exception ex)
@@ -80,6 +89,7 @@ public class Program
                 }
             }
 
+            startupThreshold = nextInterval;
             await Task.Delay(config.Interval, token);
         }
     }

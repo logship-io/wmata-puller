@@ -5,7 +5,11 @@ namespace Logship.WmataPuller.GTFS
 {
     internal class GTFSDataPuller
     {
-        public static async Task<IReadOnlyList<JsonLogEntrySchema>> FetchVehiclePositions(string feedName, HttpClient client, GTFSRealtimeFeedConfiguration config, CancellationToken token)
+        public static async Task<IReadOnlyList<JsonLogEntrySchema>> FetchVehiclePositions(
+            string feedName,
+            HttpClient client,
+            GTFSRealtimeFeedConfiguration config,
+            CancellationToken token)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, config.VehiclePositionsProtoEndpoint);
             foreach (var header in config.Headers)
