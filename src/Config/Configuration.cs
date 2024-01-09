@@ -6,6 +6,8 @@ namespace Logship.WmataPuller.Config
     {
         public string? LogshipEndpoint { get; set; }
 
+        public int MaxDegreeOfParallelism { get; set; } = 16;
+
         public Dictionary<string, GTFSRealtimeFeedConfiguration> GTFS { get; set; } = new Dictionary<string, GTFSRealtimeFeedConfiguration>();
 
         public TimeSpan Interval { get; set; } = TimeSpan.FromSeconds(5);
@@ -27,6 +29,12 @@ namespace Logship.WmataPuller.Config
                         return false;
                     }
                 }
+            }
+
+            if (this.MaxDegreeOfParallelism < -1)
+            {
+                whyNot = "MaxDegreeOfParallelism must be -1 or greater.";
+                return false;
             }
 
             whyNot = null!;

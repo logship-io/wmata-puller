@@ -66,7 +66,8 @@ public class Program
         while (false == token.IsCancellationRequested)
         {
             var nextInterval = DateTime.UtcNow;
-            foreach (var feed in config.GTFS)
+
+            await Parallel.ForEachAsync(config.GTFS, new ParallelOptions() { CancellationToken = token, MaxDegreeOfParallelism = config.MaxDegreeOfParallelism }, async (feed, token) =>
             {
                 var timer = Stopwatch.StartNew();
                 log.LogInformation("Fetching feed {name}", feed.Key);
@@ -78,16 +79,16 @@ public class Program
                     if (results.Count == 0)
                     {
                         log.LogInformation("Fetched {count} entries for feed {name}", results.Count, feed.Key);
-                        continue;
+                        return;
                     }
                     await UploadMetrics(client, config.LogshipEndpoint!, results.Where(r => r.Timestamp >= startupThreshold).ToList(), token);
                     log.LogInformation("Finished fetching feed {name} in {elapsed}", feed.Key, timer.Elapsed);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     log.LogError(ex, "Failed to pull gtfs feed data for feed {feed}", feed.Key);
                 }
-            }
+            });
 
             startupThreshold = nextInterval;
             await Task.Delay(config.Interval, token);
