@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -60,29 +61,36 @@ public class Program
             return;
         }
 
-        var startupThreshold = DateTime.UtcNow - config.Interval;
+        var startupThresholds = new ConcurrentDictionary<string, DateTime>();
         using var client = new HttpClient();
 
         while (false == token.IsCancellationRequested)
         {
-            var nextInterval = DateTime.UtcNow;
-
             await Parallel.ForEachAsync(config.GTFS, new ParallelOptions() { CancellationToken = token, MaxDegreeOfParallelism = config.MaxDegreeOfParallelism }, async (feed, token) =>
             {
+                using var childCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                childCts.CancelAfter(TimeSpan.FromSeconds(60));
+                var requestToken = childCts.Token;
+
+                var preRequestTime = DateTime.UtcNow;
+                var oldRange = startupThresholds.GetValueOrDefault(feed.Key, DateTime.UtcNow - config.Interval);
+
                 var timer = Stopwatch.StartNew();
                 log.LogInformation("Fetching feed {name}", feed.Key);
                 try
                 {
-                    var results = (await GTFSDataPuller.FetchVehiclePositions(feed.Key, client, feed.Value, token))
-                        .Where(r => r.Timestamp >= startupThreshold).ToList();
+                    var results = (await GTFSDataPuller.FetchVehiclePositions(feed.Key, client, feed.Value, requestToken))
+                        .Where(r => r.Timestamp >= oldRange).ToList();
 
                     if (results.Count == 0)
                     {
                         log.LogInformation("Fetched {count} entries for feed {name}", results.Count, feed.Key);
                         return;
                     }
-                    await UploadMetrics(client, config.LogshipEndpoint!, results.Where(r => r.Timestamp >= startupThreshold).ToList(), token);
+                    await UploadMetrics(client, config.LogshipEndpoint!, results, requestToken);
                     log.LogInformation("Finished fetching feed {name} in {elapsed}", feed.Key, timer.Elapsed);
+
+                    startupThresholds.AddOrUpdate(feed.Key, preRequestTime, (k, v) => preRequestTime);
                 }
                 catch (Exception ex)
                 {
@@ -90,7 +98,6 @@ public class Program
                 }
             });
 
-            startupThreshold = nextInterval;
             await Task.Delay(config.Interval, token);
         }
     }
