@@ -8,6 +8,8 @@ namespace Logship.WmataPuller.Config
 
         public int MaxDegreeOfParallelism { get; set; } = 16;
 
+        public AmtrackConfiguration Amtrak { get; set; } = new AmtrackConfiguration();
+
         public Dictionary<string, GTFSRealtimeFeedConfiguration> GTFS { get; set; } = new Dictionary<string, GTFSRealtimeFeedConfiguration>();
 
         public TimeSpan Interval { get; set; } = TimeSpan.FromSeconds(5);

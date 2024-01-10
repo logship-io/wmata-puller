@@ -1,4 +1,5 @@
-﻿using Logship.WmataPuller.Config;
+﻿using Logship.WmataPuller.Amtrak;
+using Logship.WmataPuller.Config;
 using System.Text.Json.Serialization;
 
 namespace Logship.WmataPuller
@@ -15,6 +16,7 @@ namespace Logship.WmataPuller
     [JsonSerializable(typeof(double))]
     [JsonSerializable(typeof(float))]
     [JsonSerializable(typeof(Configuration))]
+    [JsonSerializable(typeof(AmtrakDataBlob))]
     internal partial class SourceGenerationContext : JsonSerializerContext
     {
     }

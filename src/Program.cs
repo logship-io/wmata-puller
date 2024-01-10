@@ -1,5 +1,6 @@
 ﻿
 using Logship.WmataPuller;
+using Logship.WmataPuller.Amtrak;
 using Logship.WmataPuller.Config;
 using Logship.WmataPuller.GTFS;
 using Microsoft.Extensions.Configuration;
@@ -61,40 +62,38 @@ public class Program
             return;
         }
 
-        var startupThresholds = new ConcurrentDictionary<string, DateTime>();
+        var fetchers = new List<IDataUploaderSource>();
+
         using var client = new HttpClient();
+
+        if (config.Amtrak?.Enabled == true)
+        {
+            fetchers.Add(new AmtrakDataPuller(client, log));
+        }
+        foreach (var feed in config.GTFS)
+        {
+            fetchers.Add(new GtfsProtobufDataPuller(feed.Key, client, feed.Value));
+        }
 
         while (false == token.IsCancellationRequested)
         {
-            await Parallel.ForEachAsync(config.GTFS, new ParallelOptions() { CancellationToken = token, MaxDegreeOfParallelism = config.MaxDegreeOfParallelism }, async (feed, token) =>
+            await Parallel.ForEachAsync(fetchers, new ParallelOptions() { CancellationToken = token, MaxDegreeOfParallelism = config.MaxDegreeOfParallelism }, async (feed, token) =>
             {
                 using var childCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                childCts.CancelAfter(TimeSpan.FromSeconds(60));
+                childCts.CancelAfter(TimeSpan.FromSeconds(45));
                 var requestToken = childCts.Token;
 
-                var preRequestTime = DateTime.UtcNow;
-                var oldRange = startupThresholds.GetValueOrDefault(feed.Key, DateTime.UtcNow - config.Interval);
-
                 var timer = Stopwatch.StartNew();
-                log.LogInformation("Fetching feed {name}", feed.Key);
+                log.LogInformation("Fetching feed {name}", feed.Name);
                 try
                 {
-                    var results = (await GTFSDataPuller.FetchVehiclePositions(feed.Key, client, feed.Value, requestToken))
-                        .Where(r => r.Timestamp >= oldRange).ToList();
-
-                    if (results.Count == 0)
-                    {
-                        log.LogInformation("Fetched {count} entries for feed {name}", results.Count, feed.Key);
-                        return;
-                    }
+                    var results = await feed.FetchDataAsync(requestToken);
                     await UploadMetrics(client, config.LogshipEndpoint!, results, requestToken);
-                    log.LogInformation("Finished fetching feed {name} in {elapsed}", feed.Key, timer.Elapsed);
-
-                    startupThresholds.AddOrUpdate(feed.Key, preRequestTime, (k, v) => preRequestTime);
+                    log.LogInformation("Finished fetching feed {name} in {elapsed}", feed.Name, timer.Elapsed);
                 }
                 catch (Exception ex)
                 {
-                    log.LogError(ex, "Failed to pull gtfs feed data for feed {feed}", feed.Key);
+                    log.LogError(ex, "Failed to pull gtfs feed data for feed {feed}", feed.Name);
                 }
             });
 
