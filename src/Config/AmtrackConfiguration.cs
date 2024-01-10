@@ -2,7 +2,7 @@
 {
     public class AmtrackConfiguration
     {
-        public bool Enabled { get; set; } = true;
+        public bool Enabled { get; set; } = false;
 
         public string AmtrackEndpoint { get; set; } = string.Empty;
 
