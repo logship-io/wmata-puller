@@ -39,6 +39,11 @@ namespace Logship.WmataPuller.Config
                 return false;
             }
 
+            if (false == Amtrak.IsValid(out whyNot))
+            {
+                return false;
+            }
+
             whyNot = null!;
             return true;
         }

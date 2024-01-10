@@ -68,7 +68,7 @@ public class Program
 
         if (config.Amtrak?.Enabled == true)
         {
-            fetchers.Add(new AmtrakDataPuller(client, log));
+            fetchers.Add(new AmtrakDataPuller(config.Amtrak, client, log));
         }
         foreach (var feed in config.GTFS)
         {

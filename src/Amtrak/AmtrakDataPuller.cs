@@ -1,4 +1,5 @@
 ﻿using Google.Protobuf.WellKnownTypes;
+using Logship.WmataPuller.Config;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
@@ -18,7 +19,6 @@ namespace Logship.WmataPuller.Amtrak
             ReadCommentHandling = JsonCommentHandling.Skip,
 
         });
-        private const string dataUrl = "https://maps.amtrak.com/services/MapDataService/trains/getTrainsData";
         private static readonly byte[] keyDerviationInitializationVector = new byte[] { 0xc6, 0xeb, 0x2f, 0x7f, 0x5c, 0x47, 0x40, 0xc1, 0xa2, 0xf7, 0x08, 0xfe, 0xfd, 0x94, 0x7d, 0x39 };
 
         private static readonly TimeZoneInfo EASTERN_TIME = TimeZoneInfo.GetSystemTimeZones().First(tz => tz.StandardName == "Eastern Standard Time");
@@ -27,13 +27,15 @@ namespace Logship.WmataPuller.Amtrak
         private static readonly TimeZoneInfo PACIFIC_TIME = TimeZoneInfo.GetSystemTimeZones().First(tz => tz.StandardName == "Pacific Standard Time");
 
 
+        private readonly AmtrackConfiguration config;
         private readonly HttpClient client;
         private readonly ILogger logger;
 
         public string Name => "Amtrak";
 
-        public AmtrakDataPuller(HttpClient client, ILogger logger)
+        public AmtrakDataPuller(AmtrackConfiguration config, HttpClient client, ILogger logger)
         {
+            this.config = config;
             this.client = client;
             this.logger = logger;
         }
@@ -42,7 +44,7 @@ namespace Logship.WmataPuller.Amtrak
         public async Task<IReadOnlyList<JsonLogEntrySchema>> FetchDataAsync(CancellationToken token)
         {
             // Fetch the full blob.
-            var amtrakDatablob = await this.client.GetAsync(dataUrl, token);
+            var amtrakDatablob = await this.client.GetAsync(this.config.AmtrackEndpoint, token);
             amtrakDatablob.EnsureSuccessStatusCode();
 
             // Read the entire content blob.
@@ -89,8 +91,8 @@ namespace Logship.WmataPuller.Amtrak
                     //{ "occupancyStatus", vehicle.OccupancyStatus.ToString()},
                 };
 
-                fields.Add("positionLatitude", item.Geometry!.Coordinates![0]);
-                fields.Add("positionLongitude", item.Geometry.Coordinates![1]);
+                fields.Add("positionLatitude", item.Geometry!.Coordinates![1]);
+                fields.Add("positionLongitude", item.Geometry.Coordinates![0]);
                 //fields.Add("positionBearing", item.Properties.Heading);
                 fields.Add("positionSpeed", string.IsNullOrWhiteSpace(item.Properties.Velocity) ? 0.0 : double.Parse(item.Properties.Velocity));
 
