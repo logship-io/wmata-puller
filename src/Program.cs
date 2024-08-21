@@ -9,7 +9,9 @@ using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 
 
@@ -105,11 +107,11 @@ public class Program
     {
         var content = JsonSerializer.Serialize<IReadOnlyList<JsonLogEntrySchema>>(entries, SourceGenerationContext.Default.IReadOnlyListJsonLogEntrySchema);
 
-        var stringContent = new StringContent(content, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"));
-        stringContent.Headers.TryAddWithoutValidation("Authorization", "Bearer " + bearerToken);
+        var request = new HttpRequestMessage(HttpMethod.Put, $"{endpoint}/inflow/{subscription}");
+        request.Content = new StringContent(content, Encoding.UTF8, "application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
-        await client.PutAsync(
-            $"{endpoint}/inflow/{subscription}",
-            stringContent);
+        var response = await client.SendAsync(request, token);
+        response.EnsureSuccessStatusCode();
     }
 }
