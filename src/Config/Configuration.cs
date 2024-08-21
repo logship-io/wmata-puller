@@ -6,6 +6,10 @@ namespace Logship.WmataPuller.Config
     {
         public string? LogshipEndpoint { get; set; }
 
+        public Guid? InflowSubscription { get; set; }
+
+        public string? BearerToken { get; set; }
+
         public int MaxDegreeOfParallelism { get; set; } = 16;
 
         public AmtrackConfiguration Amtrak { get; set; } = new AmtrackConfiguration();
@@ -19,6 +23,19 @@ namespace Logship.WmataPuller.Config
             if (string.IsNullOrEmpty(this.LogshipEndpoint))
             {
                 whyNot = "LogshipEndpoint must be set. e.g. http://try.logship.ai:5000";
+                return false;
+            }
+
+            if (null == this.InflowSubscription)
+            {
+
+                whyNot = "InflowSubscription must be set.";
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(this.BearerToken))
+            {
+                whyNot = "BearerToken must be set.";
                 return false;
             }
 

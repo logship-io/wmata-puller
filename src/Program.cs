@@ -88,7 +88,7 @@ public class Program
                 try
                 {
                     var results = await feed.FetchDataAsync(requestToken);
-                    await UploadMetrics(client, config.LogshipEndpoint!, results, requestToken);
+                    await UploadMetrics(client, config.LogshipEndpoint!, config.InflowSubscription!.Value, config.BearerToken, results, requestToken);
                     log.LogInformation("Finished fetching feed {name} in {elapsed}", feed.Name, timer.Elapsed);
                 }
                 catch (Exception ex)
@@ -101,9 +101,15 @@ public class Program
         }
     }
 
-    private static async Task UploadMetrics(HttpClient client, string endpoint, IReadOnlyList<JsonLogEntrySchema> entries, CancellationToken token)
+    private static async Task UploadMetrics(HttpClient client, string endpoint, Guid subscription, string bearerToken, IReadOnlyList<JsonLogEntrySchema> entries, CancellationToken token)
     {
         var content = JsonSerializer.Serialize<IReadOnlyList<JsonLogEntrySchema>>(entries, SourceGenerationContext.Default.IReadOnlyListJsonLogEntrySchema);
-        await client.PutAsync($"{endpoint}/inflow/{Guid.Empty}", new StringContent(content, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")));
+
+        var stringContent = new StringContent(content, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"));
+        stringContent.Headers.TryAddWithoutValidation("Authorization", "Bearer " + bearerToken);
+
+        await client.PutAsync(
+            $"{endpoint}/inflow/{subscription}",
+            stringContent);
     }
 }
